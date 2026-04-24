@@ -103,6 +103,11 @@
             opacity: 0.8;
         }
 
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         .results {
             margin-top: 1.5rem;
         }
@@ -165,7 +170,7 @@
 
         .row select {
             flex: 1;
-            min-width: 120px;
+            min-width: 110px;
         }
 
         .loading {
@@ -180,6 +185,7 @@
             padding: 0.75rem;
             border-radius: 8px;
             font-size: 0.85rem;
+            margin-top: 0.5rem;
         }
 
         .success {
@@ -188,17 +194,13 @@
             padding: 0.75rem;
             border-radius: 8px;
             font-size: 0.85rem;
+            margin-top: 0.5rem;
         }
 
         hr {
             margin: 1rem 0;
             border: none;
             border-top: 1px solid #eee;
-        }
-
-        @media (max-width: 600px) {
-            .container { padding: 1rem; }
-            .video-item img { width: 60px; height: 34px; }
         }
     </style>
 </head>
@@ -208,13 +210,13 @@
         <div class="subtitle">Descarga audio de YouTube con efectos de onda</div>
 
         <div class="tabs">
-            <button class="tab active" data-tab="search">Buscar</button>
-            <button class="tab" data-tab="url">Enlace directo</button>
+            <button class="tab active" data-tab="search">🔍 Buscar</button>
+            <button class="tab" data-tab="url">🔗 Enlace directo</button>
         </div>
 
         <div id="search-tab" class="tab-content active">
             <div class="input-group">
-                <input type="text" id="search-input" placeholder="Buscar en YouTube..." 
+                <input type="text" id="search-input" placeholder="Ej: Feid, Bad Bunny, Rock argentino..." 
                        onkeypress="if(event.key==='Enter') buscar()">
             </div>
             <button onclick="buscar()">Buscar</button>
@@ -235,18 +237,25 @@
         let videoUrl = '';
         let videoTitle = '';
 
+        // Tabs
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
                 document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
                 tab.classList.add('active');
                 document.getElementById(`${tab.dataset.tab}-tab`).classList.add('active');
+                // Limpiar resultados al cambiar de tab
+                const container = tab.dataset.tab === 'search' ? 'search-results' : 'url-results';
+                document.getElementById(container).innerHTML = '';
             });
         });
 
         async function buscar() {
             const query = document.getElementById('search-input').value.trim();
-            if (!query) return mostrarError('search-results', 'Escribe algo para buscar');
+            if (!query) {
+                mostrarError('search-results', '✏️ Escribe algo para buscar');
+                return;
+            }
             
             mostrarLoading('search-results');
             
@@ -258,13 +267,13 @@
                 });
                 const data = await res.json();
                 
-                if (data.success && data.videos.length) {
+                if (data.success && data.videos && data.videos.length) {
                     mostrarVideos(data.videos);
                 } else {
-                    mostrarError('search-results', 'No se encontraron videos');
+                    mostrarError('search-results', data.error || '❌ No se encontraron videos');
                 }
             } catch (e) {
-                mostrarError('search-results', 'Error de conexión');
+                mostrarError('search-results', '❌ Error de conexión con el servidor');
             }
         }
 
@@ -273,10 +282,10 @@
                 <div class="video-list">
                     ${videos.map(v => `
                         <div class="video-item" onclick="seleccionarVideo('${v.url}', '${escapeHtml(v.title)}')">
-                            <img src="${v.thumbnail}" alt="">
+                            <img src="${v.thumbnail}" alt="" onerror="this.src='https://placehold.co/80x45/eee/999?text=No+img'">
                             <div class="info">
                                 <div class="title">${escapeHtml(v.title)}</div>
-                                <div class="meta">${v.uploader} • ${formatDuration(v.duration)}</div>
+                                <div class="meta">${escapeHtml(v.uploader)} • ${formatDuration(v.duration)}</div>
                             </div>
                         </div>
                     `).join('')}
@@ -287,7 +296,10 @@
 
         async function obtenerInfo() {
             const url = document.getElementById('url-input').value.trim();
-            if (!url) return mostrarError('url-results', 'Ingresa una URL');
+            if (!url) {
+                mostrarError('url-results', '✏️ Ingresa una URL de YouTube');
+                return;
+            }
             
             mostrarLoading('url-results');
             
@@ -302,10 +314,10 @@
                 if (data.success) {
                     seleccionarVideo(url, data.title);
                 } else {
-                    mostrarError('url-results', data.error || 'Error al obtener info');
+                    mostrarError('url-results', data.error || '❌ No se pudo obtener información del video');
                 }
             } catch (e) {
-                mostrarError('url-results', 'Error de conexión');
+                mostrarError('url-results', '❌ Error de conexión con el servidor');
             }
         }
 
@@ -316,7 +328,7 @@
             const container = document.getElementById(getActiveContainer());
             container.innerHTML = `
                 <div class="download-panel">
-                    <div style="font-weight: 500; margin-bottom: 0.75rem;">${escapeHtml(title)}</div>
+                    <div style="font-weight: 500; margin-bottom: 0.75rem; word-break: break-word;">📥 ${escapeHtml(title)}</div>
                     <div class="row">
                         <select id="formato-select">
                             <option value="mp3">MP3</option>
@@ -330,7 +342,7 @@
                         <select id="calidad-select">
                             <option value="320">320 kbps</option>
                             <option value="256">256 kbps</option>
-                            <option value="192">192 kbps</option>
+                            <option value="192" selected>192 kbps</option>
                             <option value="128">128 kbps</option>
                         </select>
                         <select id="efecto-select">
@@ -340,15 +352,23 @@
                             <option value="lofi">LoFi</option>
                         </select>
                     </div>
-                    <button onclick="descargar()" style="width: 100%;">Descargar</button>
+                    <button onclick="descargar()" style="width: 100%;">⬇️ Descargar</button>
                 </div>
             `;
         }
 
         async function descargar() {
+            if (!videoUrl) {
+                mostrarError(getActiveContainer(), '❌ No hay video seleccionado');
+                return;
+            }
+            
             const formato = document.getElementById('formato-select').value;
             const calidad = document.getElementById('calidad-select').value;
             const efecto = document.getElementById('efecto-select').value;
+            
+            const btn = document.querySelector('.download-panel button');
+            if (btn) btn.disabled = true;
             
             mostrarLoading(getActiveContainer());
             
@@ -361,13 +381,21 @@
                 const data = await res.json();
                 
                 if (data.success) {
-                    mostrarExito(getActiveContainer(), `Descargado: ${data.title}`);
+                    mostrarExito(getActiveContainer(), `✅ Descargado: ${data.title}`);
+                    // Descargar archivo
                     window.location.href = `/download_file/${data.filename}`;
+                    // Limpiar después de 5 segundos
+                    setTimeout(() => {
+                        document.getElementById(getActiveContainer()).innerHTML = '';
+                        videoUrl = '';
+                    }, 5000);
                 } else {
-                    mostrarError(getActiveContainer(), data.error || 'Error al descargar');
+                    mostrarError(getActiveContainer(), data.error || '❌ Error al descargar');
+                    if (btn) btn.disabled = false;
                 }
             } catch (e) {
-                mostrarError(getActiveContainer(), 'Error de conexión');
+                mostrarError(getActiveContainer(), '❌ Error de conexión con el servidor');
+                if (btn) btn.disabled = false;
             }
         }
 
@@ -377,7 +405,7 @@
         }
 
         function mostrarLoading(id) {
-            document.getElementById(id).innerHTML = '<div class="loading">Cargando...</div>';
+            document.getElementById(id).innerHTML = '<div class="loading">⏳ Cargando...</div>';
         }
 
         function mostrarError(id, msg) {
@@ -389,12 +417,13 @@
             const div = document.createElement('div');
             div.className = 'success';
             div.innerHTML = escapeHtml(msg);
+            const existing = el.querySelector('.success');
+            if (existing) existing.remove();
             el.insertBefore(div, el.firstChild);
-            setTimeout(() => div.remove(), 4000);
         }
 
         function formatDuration(sec) {
-            if (!sec) return '0:00';
+            if (!sec || sec <= 0) return 'Live';
             const m = Math.floor(sec / 60);
             const s = sec % 60;
             return `${m}:${s.toString().padStart(2,'0')}`;
